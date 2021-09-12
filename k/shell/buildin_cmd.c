@@ -9,42 +9,53 @@
 #include "assert.h"
 
 /* 将路径old_abs_path中的..和.转换为实际路径后存入new_abs_path */
+// old_abs _path 中可能包括"."或“".."
+// 但 new_abs _path 中绝对不包括它们
+// 调用函数 path_parse 从左到右解析 old_abs _path 路径中的每一层，若解析出来的
+// 目录名不是“．．"就将其连接到 new_abs _path ，若是“．．”，
+// 就将 new_abs _path 的最后一层目录去掉
 static void wash_path(char* old_abs_path, char* new_abs_path) {
+   
    assert(old_abs_path[0] == '/');
    char name[MAX_FILE_NAME_LEN] = {0};    
    char* sub_path = old_abs_path;
+   // path_parse 将最上层路径名称解析出来，存储到name中
    sub_path = path_parse(sub_path, name);
    if (name[0] == 0) { // 若只键入了"/",直接将"/"存入new_abs_path后返回 
       new_abs_path[0] = '/';
       new_abs_path[1] = 0;
       return;
    }
+
    new_abs_path[0] = 0;	   // 避免传给new_abs_path的缓冲区不干净
    strcat(new_abs_path, "/");
+
    while (name[0]) {
-      /* 如果是上一级目录“..” */
-      if (!strcmp("..", name)) {
-	 char* slash_ptr =  strrchr(new_abs_path, '/');
-       /*如果未到new_abs_path中的顶层目录,就将最右边的'/'替换为0,
-	 这样便去除了new_abs_path中最后一层路径,相当于到了上一级目录 */
-	 if (slash_ptr != new_abs_path) {	// 如new_abs_path为“/a/b”,".."之后则变为“/a”
-	    *slash_ptr = 0;
-	 } else {	      // 如new_abs_path为"/a",".."之后则变为"/"
-      /* 若new_abs_path中只有1个'/',即表示已经到了顶层目录,
-	 就将下一个字符置为结束符0. */
-	    *(slash_ptr + 1) = 0;
-	 }
+      if (!strcmp("..", name)) {       // 如果name是..
+         // 从后往前查找字符串str中首次出现字符ch的地址(不是下标,是地址)
+         char* slash_ptr =  strrchr(new_abs_path, '/');
+         /*如果未到new_abs_path中的顶层目录,就将最右边的'/'替换为0,
+         这样便去除了new_abs_path中最后一层路径,相当于到了上一级目录,
+         我觉得替换为0之后，就相当于是new_abs_path的末尾了 */
+         if (slash_ptr != new_abs_path) {	// 如new_abs_path为“/a/b”,".."之后则变为“/a”
+            *slash_ptr = 0;
+         } else {	      // 如new_abs_path为"/a",".."之后则变为"/"
+            /* 若new_abs_path中只有1个'/',即表示已经到了顶层目录,
+            就将下一个字符置为结束符0. */
+            *(slash_ptr + 1) = 0;
+         }
       } else if (strcmp(".", name)) {	  // 如果路径不是‘.’,就将name拼接到new_abs_path
-	 if (strcmp(new_abs_path, "/")) {	  // 如果new_abs_path不是"/",就拼接一个"/",此处的判断是为了避免路径开头变成这样"//"
-	    strcat(new_abs_path, "/");
-	 }
-	 strcat(new_abs_path, name);
+         if (strcmp(new_abs_path, "/")) {	  // 如果new_abs_path不是"/",就拼接一个"/",此处的判断是为了避免路径开头变成这样"//"
+            strcat(new_abs_path, "/");
+         }
+         strcat(new_abs_path, name);
       }  // 若name为当前目录".",无须处理new_abs_path
 
-      /* 继续遍历下一层路径 */
-      memset(name, 0, MAX_FILE_NAME_LEN);
+      // 将dst_起始的size个字节置为value
+      memset(name, 0, 16);
+      // 每次都将sub_name的最上层目录去掉，并将这个最上层目录存入name中
       if (sub_path) {
-	 sub_path = path_parse(sub_path, name);
+	      sub_path = path_parse(sub_path, name);
       }
    }
 }
